@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from flask_heroky import Heroku
+from flask_heroku import Heroku
 
 app = Flask(__name__)
 heroku = Heroku(app)
