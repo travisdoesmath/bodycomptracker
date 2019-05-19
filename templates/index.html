@@ -28,7 +28,7 @@
         .attr("width", width)
 
     var g = svg.append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top}`);
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
     d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(d) {
         console.log(d);
