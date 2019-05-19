@@ -4,7 +4,24 @@
   <meta charset="utf-8">
   <title>Body Comp Tracker</title>
   <!-- <link rel="stylesheet" href="style.css"> -->
+  <style>
+      html,
+    body {
+    padding: 0;
+    margin: 0;
+    }
+
+    .axis {
+    /* font: 14px sans-serif; */
+    }
+
+    .line {
+    fill: none;
+    stroke-width: 2px;
+    }
+  </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.2/d3.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js"></script>
 </head>
 <body>
   <div id="svg-area"></div>
@@ -19,19 +36,91 @@
         left: 60
     }
 
-    var chartWidth = width - margin.left - margin.right;
-    var chartHeight = height - margin.top - margin.bottom;
+    var weightChartWidth = width - margin.left - margin.right;
+    var weightChartHeight = height / 2 - margin.top - margin.bottom;
+    var leanMassChartWidth = width - margin.left - margin.right;
+    var leanMassChartHeight = height / 2 - margin.top - margin.bottom;
 
     var svg = d3.select("#svg-area")
         .append("svg")
         .attr("height", height)
         .attr("width", width)
 
-    var g = svg.append("g")
+    var weightGroup = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(d) {
-        console.log(d);
+    var leanMassGroup = svg.append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top + height / 2})`);
+
+    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
+        globalData = data;
+
+        data = data.filter(d => moment(d.measured_at) > moment().subtract(30, 'day'))
+
+        data.forEach(element => {
+            element.measured_at = d3.isoParse(element.measured_at)
+        });
+        
+        data.sort((a, b) => a.measured_at - b.measured_at)
+
+        var weightXScale = d3.scaleTime()
+            .domain(d3.extent(data, d => d.measured_at))
+            .range([0, weightChartWidth])
+
+        var weightYScale = d3.scaleLinear()
+            .domain(d3.extent(data, d => d.weight_lb))
+            .range([weightChartHeight, 0])
+
+        var leanMassXScale = d3.scaleTime()
+            .domain(d3.extent(data, d => d.measured_at))
+            .range([0, leanMassChartWidth])
+
+        var leanMassYScale = d3.scaleLinear()
+            .domain(d3.extent(data, d => d.lean_mass_lb))
+            .range([leanMassChartHeight, 0])
+
+        var weightXAxis = d3.axisBottom(weightXScale);
+        var weightYAxis = d3.axisLeft(weightYScale)
+        var leanMassXAxis = d3.axisBottom(leanMassXScale);
+        var leanMassYAxis = d3.axisLeft(leanMassYScale)
+
+        var weightLine = d3.line()
+            .x(d => weightXScale(d.measured_at))
+            .y(d => weightYScale(d.weight_lb))
+
+        var leanMassLine = d3.line()
+            .x(d => leanMassXScale(d.measured_at))
+            .y(d => leanMassYScale(d.lean_mass_lb))
+
+        weightGroup.append("path")
+            .attr("d", weightLine(data))
+            .attr("class", "line")
+            .style("stroke", "steelblue")
+
+        leanMassGroup.append("path")
+            .attr("d", leanMassLine(data))            
+            .attr("class", "line")
+            .style("stroke", "orange")
+
+        weightGroup.append("g")
+            .classed("axis", true)
+            .call(weightYAxis)
+
+        weightGroup.append("g")
+            .classed("axis", true)
+            .attr("transform", `translate(0, ${weightChartHeight})`)
+            .call(weightXAxis)
+
+        leanMassGroup.append("g")
+            .classed("axis", true)
+            .call(leanMassYAxis)
+
+        leanMassGroup.append("g")
+            .classed("axis", true)
+            .attr("transform", `translate(0, ${leanMassChartHeight})`)
+            .call(leanMassXAxis)
+
+        console.log(data);
     })
 
   </script>
