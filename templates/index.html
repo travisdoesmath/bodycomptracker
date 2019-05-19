@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Body Comp Tracker</title>
+  <!-- <link rel="stylesheet" href="style.css"> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.2/d3.js"></script>
+</head>
+<body>
+  <div id="svg-area"></div>
+  <script>
+    var height = 500,
+        width = 960
+
+    var margin = {
+        top: 60,
+        right: 60, 
+        bottom: 60,
+        left: 60
+    }
+
+    var chartWidth = width - margin.left - margin.right;
+    var chartHeight = height - margin.top - margin.bottom;
+
+    var svg = d3.select("#svg-area")
+        .append("svg")
+        .attr("height", height)
+        .attr("width", width)
+
+    var g = svg.append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top}`);
+
+    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(d) {
+        console.log(d);
+    })
+
+  </script>
+</body>
+</html>
