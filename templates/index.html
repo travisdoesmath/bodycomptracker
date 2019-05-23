@@ -9,10 +9,18 @@
     body {
     padding: 0;
     margin: 0;
+    background: #000;
+    color: #AAA;
     }
 
     .axis {
     /* font: 14px sans-serif; */
+        color: #999;
+    }
+    
+    .grid {
+        opacity: .25;
+        color: #999;
     }
 
     .line {
@@ -24,7 +32,16 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js"></script>
 </head>
 <body>
-  <div id="svg-area"></div>
+  <div id="svg-area">
+      <svg>
+          <defs> 
+            <pattern id="lightstripe" patternUnits="userSpaceOnUse" width="5" height="5"> 
+                <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1JyBoZWlnaHQ9JzUnPgogIDxyZWN0IHdpZHRoPSc1JyBoZWlnaHQ9JzUnIGZpbGw9J3doaXRlJy8+CiAgPHBhdGggZD0nTTAgNUw1IDBaTTYgNEw0IDZaTS0xIDFMMSAtMVonIHN0cm9rZT0nIzg4OCcgc3Ryb2tlLXdpZHRoPScxJy8+Cjwvc3ZnPg==" x="0" y="0" width="5" height="5"></image> 
+            </pattern> 
+        </defs>
+    </svg>
+  </div>
+  <div id="info"></div>
   <script>
     var height = 500,
         width = 960
@@ -36,91 +53,208 @@
         left: 60
     }
 
-    var weightChartWidth = width - margin.left - margin.right;
-    var weightChartHeight = height / 2 - margin.top - margin.bottom;
-    var leanMassChartWidth = width - margin.left - margin.right;
-    var leanMassChartHeight = height / 2 - margin.top - margin.bottom;
+    var chartWidth = width - margin.left - margin.right;
+    var chartHeight = height - margin.top - margin.bottom;
+
+    var axisBreakHeight = 20;
 
     var svg = d3.select("#svg-area")
-        .append("svg")
+        .select("svg")
         .attr("height", height)
         .attr("width", width)
 
-    var weightGroup = svg.append("g")
+    var g = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    var leanMassGroup = svg.append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top + height / 2})`);
+    function weightedLeastSquares(X, y, w) {
+        var sum_wx = 0,
+            sum_wxx = 0,
+            sum_wxy = 0,
+            sum_wy = 0,
+            sum_w = 0;
+
+        for (var i = 0; i < X.length; i++) {
+            sum_wx += w[i] * X[i];
+            sum_wxx += w[i] * X[i] * X[i];
+            sum_wxy += w[i] * X[i] * y[i];
+            sum_wy += w[i] * y[i];
+            sum_w += w[i]
+        }
+        var beta = (sum_w*sum_wxy - sum_wx*sum_wy)/(sum_w*sum_wxx - sum_wx*sum_wx);
+        var alpha = sum_wy/sum_w - beta * sum_wx/sum_w;
+
+        return {'slope':beta, 'intercept': alpha}
+    }
+
+    function median(values) {
+        values.sort( function(a,b) {return a - b;} );
+        var half = Math.floor(values.length/2);
+        if (values.length % 2) {
+            return values[half];
+        } else {
+            return (values[half-1] + values[half]) / 2.0;
+        }
+    }
+
+    K = x => Math.abs(x) <= 1 ? (15/16)*(1-x)**2 : 0
+    T = x => Math.abs(1 - Math.abs(x**3))**3    
+
+    K = x => 1
+
+    function smooth(data, windowInDays) {
+        var windowInMilliseconds = windowInDays * 24 * 60 * 60 * 1000;
+        
+        data.forEach(datum => {
+            var subset = data.filter(d => Math.abs(d.measured_at - datum.measured_at) <= windowInMilliseconds)
+            console.log(subset.length)
+            x = subset.map(d => (d.measured_at - datum.measured_at)/windowInMilliseconds)
+            sample_weights = x.map(d => Math.abs(1 - Math.abs(d**3))**3)
+            weight_lb = subset.map(d => d.weight_lb)
+            lean_mass_lb = subset.map(d => d.lean_mass_lb)
+            weight_reg = weightedLeastSquares(x, weight_lb, sample_weights)
+            lean_mass_reg = weightedLeastSquares(x, lean_mass_lb, sample_weights)
+            smooth_weight = weight_reg.intercept
+            smooth_lean_mass = lean_mass_reg.intercept
+            datum['smooth_weight_lb'] = smooth_weight
+            datum['smooth_lean_mass_lb'] = smooth_lean_mass
+            datum['smooth_bfp'] = 1 - smooth_lean_mass / smooth_weight
+            datum['weight_residual'] = datum['weight_lb'] - smooth_weight
+            datum['lean_mass_residual'] = datum['lean_mass_lb'] - smooth_lean_mass
+        })
+    }
 
     d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
         globalData = data;
 
-        data = data.filter(d => moment(d.measured_at) > moment().subtract(30, 'day'))
+        //data = data.filter(d => moment(d.measured_at) > moment().subtract(20, 'day'))
+        data = data.filter(d => d.lean_mass_lb < 200)
 
         data.forEach(element => {
             element.measured_at = d3.isoParse(element.measured_at)
         });
-        
+
         data.sort((a, b) => a.measured_at - b.measured_at)
 
-        var weightXScale = d3.scaleTime()
+        smooth(data, 30);
+        
+        weightMin = Math.floor(d3.min(data, d => d.weight_lb)/5)*5
+        weightMax = Math.ceil(d3.max(data, d => d.weight_lb)/5)*5
+        //leanMassRange = d3.max(data, d => d.lean_mass_lb) - d3.min(data, d => d.lean_mass_lb)
+        //leanMassMidpoint = Math.round((d3.min(data, d => d.lean_mass_lb) + leanMassRange / 2)/5)*5
+        leanMassMin = Math.floor(d3.min(data, d => d.lean_mass_lb)/5)*5
+        leanMassMax = Math.ceil(d3.max(data, d => d.lean_mass_lb)/5)*5
+        //range = Math.ceil(Math.max(weightRange, leanMassRange)/10)*10
+    
+
+        var xScale = d3.scaleTime()
             .domain(d3.extent(data, d => d.measured_at))
-            .range([0, weightChartWidth])
+            .range([0, chartWidth])
 
-        var weightYScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.weight_lb))
-            .range([weightChartHeight, 0])
 
-        var leanMassXScale = d3.scaleTime()
-            .domain(d3.extent(data, d => d.measured_at))
-            .range([0, leanMassChartWidth])
+        // weightMin = 235
+        // weightMax = 245
+        // leanMassMin = 120
+        // leanMassMax = 170
 
-        var leanMassYScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.lean_mass_lb))
-            .range([leanMassChartHeight, 0])
+        var breakpoint = chartHeight - (chartHeight - axisBreakHeight) * (leanMassMax - leanMassMin) / ((weightMax - weightMin) + (leanMassMax - leanMassMin))
 
-        var weightXAxis = d3.axisBottom(weightXScale);
-        var weightYAxis = d3.axisLeft(weightYScale)
-        var leanMassXAxis = d3.axisBottom(leanMassXScale);
-        var leanMassYAxis = d3.axisLeft(leanMassYScale)
+        yScale = d3.scaleLinear()
+            .domain([leanMassMin, leanMassMax, weightMin, weightMax])
+            .range([chartHeight, breakpoint, breakpoint - axisBreakHeight,0])
 
+        var xAxis = d3.axisBottom(xScale);
+        yAxis = d3.axisLeft(yScale)
+            .tickValues(d3.range(leanMassMin, leanMassMax + 5, 5).concat(d3.range(weightMin, weightMax + 5, 5)))
+
+        var yGridlines = d3.axisLeft(yScale).tickValues(yAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
+        var xGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize(chartHeight).tickFormat("")
+
+        g.append("g")
+            .classed("grid", true)
+            .call(yGridlines)
+
+        g.append("g")
+            .classed("grid", true)
+            .call(xGridlines)
+        
         var weightLine = d3.line()
-            .x(d => weightXScale(d.measured_at))
-            .y(d => weightYScale(d.weight_lb))
+            .x(d => xScale(d.measured_at))
+            .y(d => yScale(d.smooth_weight_lb))
 
         var leanMassLine = d3.line()
-            .x(d => leanMassXScale(d.measured_at))
-            .y(d => leanMassYScale(d.lean_mass_lb))
+            .x(d => xScale(d.measured_at))
+            .y(d => yScale(d.smooth_lean_mass_lb))
 
-        weightGroup.append("path")
+        var weightObs = g.selectAll(".weight .obs")
+            .data(data)
+            .enter()
+            .append("circle")
+            .classed("weight", true)
+            .classed("obs", true)
+            .attr("cx", d => xScale(d.measured_at))
+            .attr("cy", d => yScale(d.weight_lb))
+            .attr("r", 3)
+            .attr("fill", "none")
+            .attr("stroke", "yellow")
+            .attr("opacity", 0.25)
+
+        var leanMassObs = g.selectAll(".leanmass .obs")
+            .data(data)
+            .enter()
+            .append("circle")
+            .classed("leanmass", true)
+            .classed("obs", true)
+            .attr("cx", d => xScale(d.measured_at))
+            .attr("cy", d => yScale(d.lean_mass_lb))
+            .attr("r", 3)
+            .attr("fill", "none")
+            .attr("stroke", "orange")
+            .attr("opacity", 0.25)
+
+        g.append("path")
             .attr("d", weightLine(data))
             .attr("class", "line")
-            .style("stroke", "steelblue")
+            .style("stroke", "yellow")
 
-        leanMassGroup.append("path")
+        g.append("path")
             .attr("d", leanMassLine(data))            
             .attr("class", "line")
             .style("stroke", "orange")
 
-        weightGroup.append("g")
+        g.append("g")
             .classed("axis", true)
-            .call(weightYAxis)
+            .call(yAxis)
 
-        weightGroup.append("g")
+        g.append("g")
             .classed("axis", true)
-            .attr("transform", `translate(0, ${weightChartHeight})`)
-            .call(weightXAxis)
+            .attr("transform", `translate(0, ${chartHeight})`)
+            .call(xAxis)
 
-        leanMassGroup.append("g")
-            .classed("axis", true)
-            .call(leanMassYAxis)
+        g.append("rect")
+            .attr("x", 0)
+            .attr("width", chartWidth)
+            .attr("y", breakpoint - axisBreakHeight)
+            .attr("height", axisBreakHeight)
+            .attr("fill", "url(#lightstripe)")
+            .attr("opacity", 0.25)
 
-        leanMassGroup.append("g")
-            .classed("axis", true)
-            .attr("transform", `translate(0, ${leanMassChartHeight})`)
-            .call(leanMassXAxis)
 
-        console.log(data);
+        console.log(data[data.length - 1]);
+
+        var weekInMilliseconds = 7 * 24 * 60 * 60 * 1000
+
+        weightTrend = (data[data.length - 1].smooth_weight_lb - data[data.length - 2].smooth_weight_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
+        console.log(`weight trend: ${weightTrend} per week`)
+        //weight_trend = weightedLeastSquares(data.slice(data.length - 7).map(d => d.measured_at), data.slice(data.length - 7).map(d => d.smooth30_weight_lb), [1,1,1,1,1,1,1]).slope
+        bfpTrend = (data[data.length - 1].smooth_bfp - data[data.length - 2].smooth_bfp) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
+        console.log(`bfp trend: ${bfpTrend} per week`)
+        var info = d3.select("#info")
+
+        // info.append("span")
+        //     .text(weightTrend)
+
+        // info.append("span")
+        //     .text(bfpTrend)
     })
 
   </script>
