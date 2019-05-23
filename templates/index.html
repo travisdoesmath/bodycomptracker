@@ -5,17 +5,19 @@
   <title>Body Comp Tracker</title>
   <!-- <link rel="stylesheet" href="style.css"> -->
   <style>
-      html,
+    html,
     body {
-    padding: 0;
-    margin: 0;
-    background: #000;
-    color: #AAA;
+        padding: 0;
+        margin: 0;
+        background: #000;
+        color: #AAA;
+        font-family: 'Open Sans', sans-serif;
+        display: flex;
     }
 
     .axis {
     /* font: 14px sans-serif; */
-        color: #999;
+        color: #AAA;
     }
     
     .grid {
@@ -27,9 +29,29 @@
     fill: none;
     stroke-width: 2px;
     }
+
+    .obs {
+        opacity: 0.5;
+    }
+
+    #info {
+        display: none;
+        padding: 10px;
+        border: 1px solid #DDD;
+        border-radius: 10px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    #info p {
+        margin: 0
+    }
+    #info h4 {
+        margin: 0 0 10px 0;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.2/d3.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="svg-area">
@@ -41,16 +63,18 @@
         </defs>
     </svg>
   </div>
-  <div id="info"></div>
+  <div>
+        <div id="info"></div>
+  </div>
   <script>
-    var height = 500,
-        width = 960
+    var height = 400,
+        width = 600
 
     var margin = {
-        top: 60,
-        right: 60, 
-        bottom: 60,
-        left: 60
+        top: 20,
+        right: 20, 
+        bottom: 20,
+        left: 40
     }
 
     var chartWidth = width - margin.left - margin.right;
@@ -126,7 +150,6 @@
     d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
         globalData = data;
 
-        //data = data.filter(d => moment(d.measured_at) > moment().subtract(20, 'day'))
         data = data.filter(d => d.lean_mass_lb < 200)
 
         data.forEach(element => {
@@ -137,24 +160,16 @@
 
         smooth(data, 30);
         
-        weightMin = Math.floor(d3.min(data, d => d.weight_lb)/5)*5
-        weightMax = Math.ceil(d3.max(data, d => d.weight_lb)/5)*5
-        //leanMassRange = d3.max(data, d => d.lean_mass_lb) - d3.min(data, d => d.lean_mass_lb)
-        //leanMassMidpoint = Math.round((d3.min(data, d => d.lean_mass_lb) + leanMassRange / 2)/5)*5
-        leanMassMin = Math.floor(d3.min(data, d => d.lean_mass_lb)/5)*5
-        leanMassMax = Math.ceil(d3.max(data, d => d.lean_mass_lb)/5)*5
-        //range = Math.ceil(Math.max(weightRange, leanMassRange)/10)*10
-    
+        subset = data.filter(d => moment(d.measured_at) > moment().subtract(180, 'day'))
+
+        weightMin = Math.floor(d3.min(subset, d => d.weight_lb)/5)*5
+        weightMax = Math.ceil(d3.max(subset, d => d.weight_lb)/5)*5
+        leanMassMin = Math.floor(d3.min(subset, d => d.lean_mass_lb)/5)*5
+        leanMassMax = Math.ceil(d3.max(subset, d => d.lean_mass_lb)/5)*5
 
         var xScale = d3.scaleTime()
-            .domain(d3.extent(data, d => d.measured_at))
+            .domain(d3.extent(subset, d => d.measured_at))
             .range([0, chartWidth])
-
-
-        // weightMin = 235
-        // weightMax = 245
-        // leanMassMin = 120
-        // leanMassMax = 170
 
         var breakpoint = chartHeight - (chartHeight - axisBreakHeight) * (leanMassMax - leanMassMin) / ((weightMax - weightMin) + (leanMassMax - leanMassMin))
 
@@ -186,7 +201,7 @@
             .y(d => yScale(d.smooth_lean_mass_lb))
 
         var weightObs = g.selectAll(".weight .obs")
-            .data(data)
+            .data(subset)
             .enter()
             .append("circle")
             .classed("weight", true)
@@ -196,10 +211,9 @@
             .attr("r", 3)
             .attr("fill", "none")
             .attr("stroke", "yellow")
-            .attr("opacity", 0.25)
 
         var leanMassObs = g.selectAll(".leanmass .obs")
-            .data(data)
+            .data(subset)
             .enter()
             .append("circle")
             .classed("leanmass", true)
@@ -209,15 +223,14 @@
             .attr("r", 3)
             .attr("fill", "none")
             .attr("stroke", "orange")
-            .attr("opacity", 0.25)
 
         g.append("path")
-            .attr("d", weightLine(data))
+            .attr("d", weightLine(subset))
             .attr("class", "line")
             .style("stroke", "yellow")
 
         g.append("path")
-            .attr("d", leanMassLine(data))            
+            .attr("d", leanMassLine(subset))            
             .attr("class", "line")
             .style("stroke", "orange")
 
@@ -243,18 +256,27 @@
 
         var weekInMilliseconds = 7 * 24 * 60 * 60 * 1000
 
-        weightTrend = (data[data.length - 1].smooth_weight_lb - data[data.length - 2].smooth_weight_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
-        console.log(`weight trend: ${weightTrend} per week`)
-        //weight_trend = weightedLeastSquares(data.slice(data.length - 7).map(d => d.measured_at), data.slice(data.length - 7).map(d => d.smooth30_weight_lb), [1,1,1,1,1,1,1]).slope
-        bfpTrend = (data[data.length - 1].smooth_bfp - data[data.length - 2].smooth_bfp) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
-        console.log(`bfp trend: ${bfpTrend} per week`)
         var info = d3.select("#info")
 
-        // info.append("span")
-        //     .text(weightTrend)
+        currentWeight = data[data.length - 1].smooth_weight_lb
+        currentLeanMass = data[data.length - 1].smooth_lean_mass_lb
+        currentBFP = 1 - currentLeanMass/currentWeight
 
-        // info.append("span")
-        //     .text(bfpTrend)
+        weightTrend = (data[data.length - 1].smooth_weight_lb - data[data.length - 2].smooth_weight_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
+        leanMassTrend = (data[data.length - 1].smooth_lean_mass_lb - data[data.length - 2].smooth_lean_mass_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
+        bfpTrend = (data[data.length - 1].smooth_bfp - data[data.length - 2].smooth_bfp) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
+
+
+        info.append("p")
+            .html(`<h4>Current Measurements</h4>
+                   Weight: ${currentWeight.toFixed(1)} lbs<br>
+                   Lean Mass: ${currentLeanMass.toFixed(1)} lbs<br>
+                   BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}<br><hr>
+                   <h4>Projected 7-day trend</h4>
+                   Weight: ${(weightTrend > 0) ? '+' : ''}${weightTrend.toFixed(1)} lbs<br>
+                   Lean Mass: ${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)} lbs<br>
+                   BFP: ${bfpTrend.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}`)
+        info.style("display","block")
     })
 
   </script>
