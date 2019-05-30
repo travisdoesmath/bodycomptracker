@@ -266,12 +266,19 @@
         leanMassTrend = (data[data.length - 1].smooth_lean_mass_lb - data[data.length - 2].smooth_lean_mass_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
         bfpTrend = (data[data.length - 1].smooth_bfp - data[data.length - 2].smooth_bfp) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
 
+        now = new Date()
+        birthday = new Date(1980, 1, 3)
+        age = (now - birthday) / (1000 * 60 * 60 * 24 * 365.25)
+
+        BMR_mifflin_st_jeor = 10*(currentWeight * 0.453592) + 6.25*(66*2.54) - 5*age + 5
+        BMR_katch_mcardle = 370 + (21.6*currentLeanMass * 0.453592)
 
         info.append("p")
             .html(`<h4>Current Measurements</h4>
                    Weight: ${currentWeight.toFixed(1)} lbs<br>
                    Lean Mass: ${currentLeanMass.toFixed(1)} lbs<br>
-                   BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}<br><hr>
+                   BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}<br>
+                   BMR: ${50*Math.round(BMR_katch_mcardle/50).toFixed()} kcal<br><hr>
                    <h4>Projected 7-day trend</h4>
                    Weight: ${(weightTrend > 0) ? '+' : ''}${weightTrend.toFixed(1)} lbs<br>
                    Lean Mass: ${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)} lbs<br>
