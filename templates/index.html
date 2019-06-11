@@ -2,21 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Body Comp Tracker</title>
   <!-- <link rel="stylesheet" href="style.css"> -->
+  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
   <style>
     html,
     body {
-        padding: 0;
-        margin: 0;
         background: #000;
         color: #AAA;
-        font-family: 'Open Sans', sans-serif;
-        display: flex;
+        font-family: sans-serif;
+    }
+
+    .l-box {
+        padding: 1em;
+    }
+
+    .l2-box {
+        padding-left:1em;
+        padding-right:1em;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    h3 {
+        margin-bottom: 0;
+    }
+
+    .svg-container {
+        display: inline-block;
+        position: relative;
+        width: 100%;
+        padding-bottom: 66%;
+        vertical-align: top;
+        overflow: hidden;
+    }
+
+    .svg-content {
+        display: inline-block;
+        position: absolute;
+        top: 0;
+        left: 0;
     }
 
     .axis {
-    /* font: 14px sans-serif; */
         color: #AAA;
     }
     
@@ -26,8 +55,8 @@
     }
 
     .line {
-    fill: none;
-    stroke-width: 2px;
+        fill: none;
+        stroke-width: 2px;
     }
 
     .obs {
@@ -51,41 +80,80 @@
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.2/d3.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js"></script>
-  <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet"> -->
 </head>
 <body>
-  <div id="svg-area">
-      <svg>
-          <defs> 
-            <pattern id="lightstripe" patternUnits="userSpaceOnUse" width="5" height="5"> 
-                <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1JyBoZWlnaHQ9JzUnPgogIDxyZWN0IHdpZHRoPSc1JyBoZWlnaHQ9JzUnIGZpbGw9J3doaXRlJy8+CiAgPHBhdGggZD0nTTAgNUw1IDBaTTYgNEw0IDZaTS0xIDFMMSAtMVonIHN0cm9rZT0nIzg4OCcgc3Ryb2tlLXdpZHRoPScxJy8+Cjwvc3ZnPg==" x="0" y="0" width="5" height="5"></image> 
-            </pattern> 
-        </defs>
-    </svg>
-  </div>
-  <div>
-        <div id="info"></div>
-  </div>
+    <div class="pure-g">
+        <div class="pure-u-1">
+            <div class="l2-box">
+                <h3>Current Measurements:</h3>
+            </div>
+        </div>
+        <div class="pure-u-1-4">
+            <div class="l-box">
+                <span id="weight"></span>
+            </div>
+        </div>
+        <div class="pure-u-1-4">
+            <div class="l-box">
+                <span id="lean-mass"></h5>
+            </div>
+        </div>
+        <div class="pure-u-1-4">
+            <div class="l-box">
+                <span id="bfp"></h5>
+            </div>
+        </div>
+        <div class="pure-u-1-4">
+            <div class="l-box">
+                <span id="bmr"></span>
+            </div>
+        </div>
+        <div class="pure-u-1 pure-u-md-2-3">
+        <div class="svg-container">
+        </div>
+        <div class="pure-u-1">
+            <div id="info"></div>
+        </div>              
+    </div>
   <script>
-    var height = 400,
-        width = 600
+    var height = 320,
+         width = 480
+
+    var svg = d3.select(".svg-container")
+        .append("svg")
+        .attr("preserveAspectRatio", "xMinYMin meet")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .classed("svg-content", true);
+
+    var defs = svg.append("defs")
+
+    defs.append("pattern")
+        .attr("id","lightstripe")
+        .attr("patternUnits","userSpaceOnUse")
+        .attr("width", "5")
+        .attr("height", "5")
+        .append("image")
+            .attr("xlink:href","data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1JyBoZWlnaHQ9JzUnPgogIDxyZWN0IHdpZHRoPSc1JyBoZWlnaHQ9JzUnIGZpbGw9J3doaXRlJy8+CiAgPHBhdGggZD0nTTAgNUw1IDBaTTYgNEw0IDZaTS0xIDFMMSAtMVonIHN0cm9rZT0nIzg4OCcgc3Ryb2tlLXdpZHRoPScxJy8+Cjwvc3ZnPg==")
+            .attr("x","0")
+            .attr("y","0")
+            .attr("width","5")
+            .attr("height","5")
+
+
+        .select("svg")
 
     var margin = {
-        top: 20,
-        right: 20, 
+        top: 10,
+        right: 10, 
         bottom: 20,
-        left: 40
+        left: 30
     }
 
     var chartWidth = width - margin.left - margin.right;
     var chartHeight = height - margin.top - margin.bottom;
 
     var axisBreakHeight = 20;
-
-    var svg = d3.select("#svg-area")
-        .select("svg")
-        .attr("height", height)
-        .attr("width", width)
 
     var g = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
@@ -130,7 +198,6 @@
         
         data.forEach(datum => {
             var subset = data.filter(d => Math.abs(d.measured_at - datum.measured_at) <= windowInMilliseconds)
-            console.log(subset.length)
             x = subset.map(d => (d.measured_at - datum.measured_at)/windowInMilliseconds)
             sample_weights = x.map(d => Math.abs(1 - Math.abs(d**3))**3)
             weight_lb = subset.map(d => d.weight_lb)
@@ -252,8 +319,6 @@
             .attr("opacity", 0.25)
 
 
-        console.log(data[data.length - 1]);
-
         var weekInMilliseconds = 7 * 24 * 60 * 60 * 1000
 
         var info = d3.select("#info")
@@ -273,17 +338,22 @@
         BMR_mifflin_st_jeor = 10*(currentWeight * 0.453592) + 6.25*(66*2.54) - 5*age + 5
         BMR_katch_mcardle = 370 + (21.6*currentLeanMass * 0.453592)
 
-        info.append("p")
-            .html(`<h4>Current Measurements</h4>
-                   Weight: ${currentWeight.toFixed(1)} lbs<br>
-                   Lean Mass: ${currentLeanMass.toFixed(1)} lbs<br>
-                   BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}<br>
-                   BMR: ${50*Math.round(BMR_katch_mcardle/50).toFixed()} kcal<br><hr>
-                   <h4>Projected 7-day trend</h4>
-                   Weight: ${(weightTrend > 0) ? '+' : ''}${weightTrend.toFixed(1)} lbs<br>
-                   Lean Mass: ${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)} lbs<br>
-                   BFP: ${bfpTrend.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}`)
-        info.style("display","block")
+        // info.append("p")
+        //     .html(`<h4>Current Measurements</h4>
+        //            Weight: ${currentWeight.toFixed(1)} lbs<br>
+        //            Lean Mass: ${currentLeanMass.toFixed(1)} lbs<br>
+        //            BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}<br>
+        //            BMR: ${50*Math.round(BMR_katch_mcardle/50).toFixed()} kcal<br><hr>
+        //            <h4>Projected 7-day trend</h4>
+        //            Weight: ${(weightTrend > 0) ? '+' : ''}${weightTrend.toFixed(1)} lbs<br>
+        //            Lean Mass: ${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)} lbs<br>
+        //            BFP: ${bfpTrend.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})}`)
+        // info.style("display","block")
+
+        d3.select("#weight").text(`WGT: ${currentWeight.toFixed(1)} lbs (${(weightTrend > 0) ? '+' : ''}${weightTrend.toFixed(1)})`)
+        d3.select("#lean-mass").text(`LBM: ${currentLeanMass.toFixed(1)} lbs (${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)})`)
+        d3.select("#bfp").text(`BFP: ${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})} (${(bfpTrend > 0) ? '+' : ''}${bfpTrend.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})})`)
+        d3.select("#bmr").text(`BMR: ${50*Math.round(BMR_katch_mcardle/50).toFixed()} kcal`)
     })
 
   </script>
