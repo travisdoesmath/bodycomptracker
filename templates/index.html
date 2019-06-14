@@ -60,16 +60,16 @@
         left: 0;
     }
 
-    .axis {
+    [class*="axis"] {
         color: #AAA;
     }
     
-    .grid {
+    [class^="grid"] {
         opacity: .25;
         color: #999;
     }
 
-    .line {
+    [class^="line"] {
         fill: none;
         stroke-width: 2px;
     }
@@ -132,24 +132,26 @@
                     <div id="info"></div>
                 </div>              
             </div>
-            <!-- <div class="pure-u-1-5 center">
+            <div id="one-week" class="pure-u-1-5 center">
                 <button class="pure-button">1w</button>
             </div>
-            <div class="pure-u-1-5 center">
+            <div id="one-month" class="pure-u-1-5 center">
                 <button class="pure-button">1m</button>
             </div>
-            <div class="pure-u-1-5 center">
+            <div id="three-months" class="pure-u-1-5 center">
                 <button class="pure-button">3m</button>
             </div>
-            <div class="pure-u-1-5 center">
+            <div id="six-months" class="pure-u-1-5 center">
                 <button class="pure-button">6m</button>
             </div>
-            <div class="pure-u-1-5 center">
+            <div id="one-year" class="pure-u-1-5 center">
                 <button class="pure-button">1y</button>
-            </div> -->
+            </div>
         </div>
     </div>
   <script>
+    var globalData;
+
     var height = 640,
          width = 480
 
@@ -250,27 +252,9 @@
         })
     }
 
-    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
-        globalData = data;
+    function renderCharts(data, subsetFunction) {
 
-        data = data.filter(d => d.lean_mass_lb < 200)
-
-        // data = data.filter(function(item, index) {
-        //     return data.map(d => d.measured_at).indexOf(item.measured_at) >= index;
-        // })
-
-        data.forEach(element => {
-            element.measured_at = d3.isoParse(element.measured_at)
-            if (element.fat_percent > 1) {
-                element.fat_percent /= 100;
-            }
-        });
-
-        data.sort((a, b) => a.measured_at - b.measured_at)
-
-        smooth(data, 60);
-        
-        subset = data.filter(d => moment(d.measured_at) > moment().subtract(180, 'day'));
+        subset = data.filter(subsetFunction);
 
         weightMin = Math.floor(d3.min(subset, d => d.weight_lb)/5)*5;
         weightMax = Math.ceil(d3.max(subset, d => d.weight_lb)/5)*5;
@@ -297,27 +281,26 @@
         var bfpYAxis = d3.axisLeft(bfpYScale)
             .tickFormat(d3.format(".0%"))
 
-
         var yGridlines = d3.axisLeft(yScale).tickValues(yAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
         var bfpYGridlines = d3.axisLeft(bfpYScale).tickValues(bfpYAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
         var xGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize(chartHeight).tickFormat("")
         var bfpXGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize(chartHeight / 2).tickFormat("")
 
-        g.append("g")
-            .classed("grid", true)
-            .call(yGridlines)
+        g.selectAll(".grid-y").data([0]).enter().append("g")
+            .classed("grid-y", true)
+        g.selectAll(".grid-y").transition().call(yGridlines)
 
-        g.append("g")
-            .classed("grid", true)
-            .call(xGridlines)
+        g.selectAll(".grid-x").data([0]).enter().append("g")
+            .classed("grid-x", true)
+        g.selectAll(".grid-x").transition().call(xGridlines)
 
-        bfpG.append("g")
-            .classed("grid", true)
-            .call(bfpYGridlines)
+        bfpG.selectAll(".grid-y").data([0]).enter().append("g")
+            .classed("grid-y", true)
+        bfpG.selectAll(".grid-y").transition().call(bfpYGridlines)
 
-        bfpG.append("g")
-            .classed("grid", true)
-            .call(bfpXGridlines)
+        bfpG.selectAll(".grid-x").data([0]).enter().append("g")
+            .classed("grid-x", true)
+        bfpG.selectAll(".grid-x").transition().call(bfpXGridlines)
         
         var weightLine = d3.line()
             .x(d => xScale(d.measured_at))
@@ -331,79 +314,115 @@
             .x(d => xScale(d.measured_at))
             .y(d => bfpYScale(d.smooth_bfp))
 
-        var weightObs = g.selectAll(".weight .obs")
-            .data(subset)
-            .enter()
+        var weightObs = g.selectAll(".weight").filter(".obs")
+            .data(subset, d => d.measured_at)
+
+        weightObs.exit()
+            .remove()
+
+        weightObs.enter()
             .append("circle")
             .classed("weight", true)
             .classed("obs", true)
-            .attr("cx", d => xScale(d.measured_at))
-            .attr("cy", d => yScale(d.weight_lb))
             .attr("r", 2)
             .attr("fill", "none")
             .attr("stroke", "#EE0")
+          .merge(weightObs)
+            .transition()
+            .attr("cx", d => xScale(d.measured_at))
+            .attr("cy", d => yScale(d.weight_lb))
 
-        var leanMassObs = g.selectAll(".leanmass .obs")
-            .data(subset)
-            .enter()
+        var leanMassObs = g.selectAll(".leanmass").filter(".obs")
+            .data(subset, d => d.measured_at + d.lean_mass_lb)
+
+        leanMassObs.exit().remove()
+
+        leanMassObs.enter()
             .append("circle")
             .classed("leanmass", true)
             .classed("obs", true)
-            .attr("cx", d => xScale(d.measured_at))
-            .attr("cy", d => yScale(d.lean_mass_lb))
             .attr("r", 2)
             .attr("fill", "none")
             .attr("stroke", "#F80")
+          .merge(leanMassObs)
+            .transition()
+            .attr("cx", d => xScale(d.measured_at))
+            .attr("cy", d => yScale(d.lean_mass_lb))
 
-        var bfpObs = bfpG.selectAll(".bfp .obs")
+        var bfpObs = bfpG.selectAll(".bfp").filter(".obs")
             .data(subset)
-            .enter()
+
+        bfpObs.exit().remove()
+
+        bfpObs.enter()
             .append("circle")
             .classed("bfp", true)
             .classed("obs", true)
-            .attr("cx", d => xScale(d.measured_at))
-            .attr("cy", d => bfpYScale(d.fat_percent))
             .attr("r", 2)
             .attr("fill", "none")
             .attr("stroke", "#F40")
+          .merge(bfpObs)
+            .transition()
+            .attr("cx", d => xScale(d.measured_at))
+            .attr("cy", d => bfpYScale(d.fat_percent))
 
-        g.append("path")
-            .attr("d", weightLine(subset))
-            .attr("class", "line")
+        weightLineElement = g.selectAll(".line-weight").data([subset])
+
+        weightLineElement.enter()
+            .append("path")
+            .classed("line-weight", true)
             .style("stroke", "#EE0")
+          .merge(weightLineElement)
+            .transition()
+            .attr("d", weightLine)
 
-        g.append("path")
-            .attr("d", leanMassLine(subset))            
-            .attr("class", "line")
+        leanMassLineElement = g.selectAll(".line-leanmass").data([subset])
+            
+        leanMassLineElement.enter()
+            .append("path")
+            .attr("class", "line-leanmass")
             .style("stroke", "#F80")
+          .merge(leanMassLineElement)
+            .transition()
+            .attr("d", leanMassLine)            
 
-        bfpG.append("path")
-            .attr("d", bfpLine(subset))
-            .attr("class", "line")
+
+        bfpLineElement = bfpG.selectAll(".line-bfp").data([subset])
+            
+        bfpLineElement.enter()
+            .append("path")
+            .attr("class", "line-bfp")
             .style("stroke", "#E20")
+          .merge(bfpLineElement)
+            .attr("d", bfpLine)
+            
 
-        g.append("g")
-            .classed("axis", true)
-            .call(yAxis)
+        g.selectAll(".axis-y").data([0]).enter().append("g")
+            .classed("axis-y", true)
+        g.selectAll(".axis-y").transition().call(yAxis)
 
-        bfpG.append("g")
-            .classed("axis", true)
+        bfpG.selectAll(".axis-x").data([0]).enter().append("g")
+            .classed("axis-x", true)
             .attr("transform", `translate(0, ${chartHeight / 2})`)
-            .call(xAxis)
+        bfpG.selectAll(".axis-x").transition().call(xAxis)
 
-        bfpG.append("g")
-            .classed("axis", true)
-            .call(bfpYAxis)
+        bfpG.selectAll(".axis-y").data([0]).enter().append("g")
+            .classed("axis-y", true)
+        bfpG.selectAll(".axis-y").transition().call(bfpYAxis)
 
-        g.append("rect")
+        g.selectAll(".break").data([0]).enter().append("rect")
+            .classed("break", true)
+            .attr("fill", "url(#lightstripe)")
+            .attr("opacity", 0.25)
+        g.selectAll(".break")
+            .transition()
             .attr("x", 0)
             .attr("width", chartWidth)
             .attr("y", breakpoint - axisBreakHeight)
             .attr("height", axisBreakHeight)
-            .attr("fill", "url(#lightstripe)")
-            .attr("opacity", 0.25)
+    }
 
-
+    function renderData(data) {
         var weekInMilliseconds = 7 * 24 * 60 * 60 * 1000
 
         var current = data[data.length - 1]
@@ -426,11 +445,6 @@
         leanMassTrend = (current.smooth_lean_mass_lb - trendPoint.smooth_lean_mass_lb) * weekInMilliseconds / trendTimeLength
         bfpTrend = (current.smooth_bfp - trendPoint.smooth_bfp) * weekInMilliseconds / trendTimeLength
 
-
-        // weightTrend = (data[data.length - 1].smooth_weight_lb - data[data.length - 2].smooth_weight_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
-        // leanMassTrend = (data[data.length - 1].smooth_lean_mass_lb - data[data.length - 2].smooth_lean_mass_lb) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
-        // bfpTrend = (data[data.length - 1].smooth_bfp - data[data.length - 2].smooth_bfp) * weekInMilliseconds / (data[data.length - 1].measured_at - data[data.length - 2].measured_at)
-
         now = new Date()
         birthday = new Date(1980, 1, 3)
         age = (now - birthday) / (1000 * 60 * 60 * 24 * 365.25)
@@ -442,7 +456,48 @@
         d3.select("#lean-mass").html(`LBM<h3>${currentLeanMass.toFixed(1)}&nbsp;lbs (${(leanMassTrend > 0) ? '+' : ''}${leanMassTrend.toFixed(1)})</h3>`)
         d3.select("#bfp").html(`BFP<h3>${currentBFP.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})} (${(bfpTrend > 0) ? '+' : ''}${bfpTrend.toLocaleString(undefined, {style: 'percent', minimumFractionDigits:1})})</h3>`)
         d3.select("#bmr").html(`BMR<h3>${50*Math.round(BMR_katch_mcardle/50).toFixed()} kcal</h3>`)
+    }
+
+    function processData(data) {
+        data = data.filter(d => d.lean_mass_lb < 200)
+
+        data = data.filter(function(item, index) {
+            return data.map(d => d.measured_at).indexOf(item.measured_at) >= index;
+        })
+
+        data.forEach(element => {
+            element.measured_at = d3.isoParse(element.measured_at)
+            if (element.fat_percent > 1) {
+                element.fat_percent /= 100;
+            }
+        });
+
+        data.sort((a, b) => a.measured_at - b.measured_at)
+
+        smooth(data, 60);
+
+        return data;
+    }
+
+    
+
+    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
+        data = processData(data);
+        
+        globalData = data;
+
+        renderCharts(data, d => moment(d.measured_at) > moment().subtract(6, 'months'))
+
+        renderData(data)
+
     })
+
+    d3.select("#one-week").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'weeks')))
+    d3.select("#one-month").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'months')))
+    d3.select("#three-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(3, 'months')))
+    d3.select("#six-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(6, 'months')))
+    d3.select("#one-year").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'years')))
+    
 
   </script>
 </body>
