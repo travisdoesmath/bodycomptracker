@@ -4,7 +4,7 @@ from flask_marshmallow import Marshmallow
 from flask_heroku import Heroku
 from flask_cors import CORS
 from stats_functions import lowess_n
-import dateutil.parser
+import iso8601
 
 app = Flask(__name__)
 CORS(app)
@@ -74,7 +74,7 @@ def add_measurement():
 def get_measurements():
     measurements = Measurement.query.all()
     result = measurements_schema.dump(measurements)
-    measured_at = [dateutil.parser.parse(x['measured_at']).timestamp()/10**15 for x in result.data]
+    measured_at = [iso8601.parse_date(x['measured_at']).timestamp()/10**15 for x in result.data]
     weight_lb = [x['weight_lb'] for x in result.data]
     lean_mass_lb = [x['lean_mass_lb'] for x in result.data]
     fat_percent = [x['fat_percent'] for x in result.data]
