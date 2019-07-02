@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_heroku import Heroku
 from flask_cors import CORS
+from stats_functions import lowess_n
 
 app = Flask(__name__)
 CORS(app)
@@ -72,6 +73,17 @@ def add_measurement():
 def get_measurements():
     measurements = Measurement.query.all()
     result = measurements_schema.dump(measurements)
+    measured_at = [x['measured_at'].timestamp()/10**15 for x in result.data]
+    weight_lb = [x['weight_lb' for x in result.data]
+    lean_mass_lb = [x['lean_mass_lb' for x in result.data]
+    fat_percent = [x['fat_percent'] for x in result.data]
+    smooth_weight_lb = lowess_n(x=measured_at, y=weight_lb, n=45)
+    smooth_lean_mass_lb = lowess_n(x=measured_at, y=lean_mass_lb, n=45)
+    smooth_fat_percent = lowess_n(x=measured_at, y=fat_percent, n=45)
+    for i in range(len(result.data)):
+        result.data[i]['smooth_weight_lb'] = smooth_weight_lb[i]
+        result.data[i]['smooth_lean_mass_lb'] = smooth_lean_mass_lb[i]
+        result.data[i]['smooth_fat_percent'] = smooth_fat_percent[i]
     return jsonify(result.data)
 
 if __name__ == '__main__':
