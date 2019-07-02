@@ -78,6 +78,10 @@ def get_measurements():
     weight_lb = [x['weight_lb'] for x in result.data]
     lean_mass_lb = [x['lean_mass_lb'] for x in result.data]
     fat_percent = [x['fat_percent'] for x in result.data]
+    print("measured_at")
+    print(measured_at)
+    print("weight_lb")
+    print(weight_lb)
     smooth_weight_lb = lowess_n(x=measured_at, y=weight_lb, k=45)
     smooth_lean_mass_lb = lowess_n(x=measured_at, y=lean_mass_lb, k=45)
     smooth_fat_percent = lowess_n(x=measured_at, y=fat_percent, k=45)
