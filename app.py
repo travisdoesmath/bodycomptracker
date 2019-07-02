@@ -74,8 +74,8 @@ def get_measurements():
     measurements = Measurement.query.all()
     result = measurements_schema.dump(measurements)
     measured_at = [x['measured_at'].timestamp()/10**15 for x in result.data]
-    weight_lb = [x['weight_lb' for x in result.data]
-    lean_mass_lb = [x['lean_mass_lb' for x in result.data]
+    weight_lb = [x['weight_lb'] for x in result.data]
+    lean_mass_lb = [x['lean_mass_lb'] for x in result.data]
     fat_percent = [x['fat_percent'] for x in result.data]
     smooth_weight_lb = lowess_n(x=measured_at, y=weight_lb, n=45)
     smooth_lean_mass_lb = lowess_n(x=measured_at, y=lean_mass_lb, n=45)
