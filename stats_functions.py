@@ -36,7 +36,7 @@ def lowess(x, y, f=2. / 3., iter=3):
 
     return yest
 
-def lowess_n(x, y, k=100, iter=3):
+def lowess_k(x, y, k=100, iter=1):
     """lowess(x, y, f=2./3., iter=3) -> yest
     Lowess smoother: Robust locally weighted regression.
     The lowess function fits a nonparametric regression curve to a scatterplot.

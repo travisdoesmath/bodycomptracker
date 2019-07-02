@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_heroku import Heroku
 from flask_cors import CORS
-from stats_functions import lowess_n
+from stats_functions import lowess_k
 import iso8601
 import numpy as np
 
@@ -75,17 +75,6 @@ def add_measurement():
 def get_measurements():
     measurements = Measurement.query.all()
     result = measurements_schema.dump(measurements)
-    # measured_at = [iso8601.parse_date(x['measured_at']).timestamp()/10**15 for x in result.data]
-    # weight_lb = [x['weight_lb'] for x in result.data]
-    # lean_mass_lb = [x['lean_mass_lb'] for x in result.data]
-    # fat_percent = [x['fat_percent'] for x in result.data]
-    # smooth_weight_lb = lowess_n(x=measured_at, y=weight_lb, k=45)
-    # smooth_lean_mass_lb = lowess_n(x=measured_at, y=lean_mass_lb, k=45)
-    # smooth_fat_percent = lowess_n(x=measured_at, y=fat_percent, k=45)
-    # for i in range(len(result.data)):
-    #     result.data[i]['smooth_weight_lb'] = smooth_weight_lb[i]
-    #     result.data[i]['smooth_lean_mass_lb'] = smooth_lean_mass_lb[i]
-    #     result.data[i]['smooth_fat_percent'] = smooth_fat_percent[i]
     return jsonify(result.data)
 
 @app.route('/smooth_measurements')
@@ -98,9 +87,9 @@ def get_smooth_measurements():
     weight_lb = np.array([x['weight_lb'] for x in result.data])
     lean_mass_lb = np.array([x['lean_mass_lb'] for x in result.data])
     fat_percent = np.array([x['fat_percent'] for x in result.data])
-    smooth_weight_lb = lowess_n(x=measured_at, y=weight_lb, k=45)
-    smooth_lean_mass_lb = lowess_n(x=measured_at, y=lean_mass_lb, k=45)
-    smooth_fat_percent = lowess_n(x=measured_at, y=fat_percent, k=45)
+    smooth_weight_lb = lowess_k(x=measured_at, y=weight_lb, k=60)
+    smooth_lean_mass_lb = lowess_k(x=measured_at, y=lean_mass_lb, k=60)
+    smooth_fat_percent = lowess_k(x=measured_at, y=fat_percent, k=60)
     for i in range(len(result.data)):
         result.data[i]['smooth_weight_lb'] = smooth_weight_lb[i]
         result.data[i]['smooth_lean_mass_lb'] = smooth_lean_mass_lb[i]
