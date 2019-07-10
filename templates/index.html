@@ -196,26 +196,6 @@
     var bfpG = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top + height / 2})`)
 
-    function weightedLeastSquares(X, y, w) {
-        var sum_wx = 0,
-            sum_wxx = 0,
-            sum_wxy = 0,
-            sum_wy = 0,
-            sum_w = 0;
-
-        for (var i = 0; i < X.length; i++) {
-            sum_wx += w[i] * X[i];
-            sum_wxx += w[i] * X[i] * X[i];
-            sum_wxy += w[i] * X[i] * y[i];
-            sum_wy += w[i] * y[i];
-            sum_w += w[i]
-        }
-        var beta = (sum_w*sum_wxy - sum_wx*sum_wy)/(sum_w*sum_wxx - sum_wx*sum_wx);
-        var alpha = sum_wy/sum_w - beta * sum_wx/sum_w;
-
-        return {'slope':beta, 'intercept': alpha}
-    }
-
     function median(values) {
         values.sort( function(a,b) {return a - b;} );
         var half = Math.floor(values.length/2);
@@ -230,27 +210,6 @@
     T = x => Math.abs(1 - Math.abs(x**3))**3    
 
     K = x => 1
-
-    function smooth(data, windowInDays) {
-        var windowInMilliseconds = windowInDays * 24 * 60 * 60 * 1000;
-        
-        data.forEach(datum => {
-            var subset = data.filter(d => Math.abs(d.measured_at - datum.measured_at) <= windowInMilliseconds)
-            x = subset.map(d => (d.measured_at - datum.measured_at)/windowInMilliseconds)
-            sample_weights = x.map(d => Math.abs(1 - Math.abs(d**3))**3)
-            weight_lb = subset.map(d => d.weight_lb)
-            lean_mass_lb = subset.map(d => d.lean_mass_lb)
-            weight_reg = weightedLeastSquares(x, weight_lb, sample_weights)
-            lean_mass_reg = weightedLeastSquares(x, lean_mass_lb, sample_weights)
-            smooth_weight = weight_reg.intercept
-            smooth_lean_mass = lean_mass_reg.intercept
-            datum['smooth_weight_lb'] = smooth_weight
-            datum['smooth_lean_mass_lb'] = smooth_lean_mass
-            datum['smooth_bfp'] = 1 - smooth_lean_mass / smooth_weight
-            datum['weight_residual'] = datum['weight_lb'] - smooth_weight
-            datum['lean_mass_residual'] = datum['lean_mass_lb'] - smooth_lean_mass
-        })
-    }
 
     function renderCharts(data, subsetFunction) {
 
@@ -312,7 +271,7 @@
 
         var bfpLine = d3.line()
             .x(d => xScale(d.measured_at))
-            .y(d => bfpYScale(d.smooth_bfp))
+            .y(d => bfpYScale(d.smooth_fat_percent))
 
         var weightObs = g.selectAll(".weight").filter(".obs")
             .data(subset, d => d.measured_at)
@@ -443,7 +402,7 @@
 
         weightTrend = (current.smooth_weight_lb - trendPoint.smooth_weight_lb) * weekInMilliseconds / trendTimeLength
         leanMassTrend = (current.smooth_lean_mass_lb - trendPoint.smooth_lean_mass_lb) * weekInMilliseconds / trendTimeLength
-        bfpTrend = (current.smooth_bfp - trendPoint.smooth_bfp) * weekInMilliseconds / trendTimeLength
+        bfpTrend = (current.smooth_fat_percent - trendPoint.smooth_fat_percent) * weekInMilliseconds / trendTimeLength
 
         now = new Date()
         birthday = new Date(1980, 1, 3)
@@ -467,21 +426,18 @@
 
         data.forEach(element => {
             element.measured_at = d3.isoParse(element.measured_at)
-            if (element.fat_percent > 1) {
-                element.fat_percent /= 100;
-            }
+            element.fat_percent /= 100;
+            element.smooth_fat_percent /= 100;
         });
 
         data.sort((a, b) => a.measured_at - b.measured_at)
-
-        smooth(data, 30);
 
         return data;
     }
 
     
 
-    d3.json("http://travs-body-comp-tracker.herokuapp.com/measurements").then(function(data) {
+    d3.json("http://travs-body-comp-tracker.herokuapp.com/smooth_measurements").then(function(data) {
         data = processData(data);
         
         globalData = data;
