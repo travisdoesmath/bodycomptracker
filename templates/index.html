@@ -111,7 +111,7 @@
         <div class="content">
             <div class="pure-g">
                 <div class="pure-u-1">
-                    <h3>Current Measurements (7-day projected):</h3>
+                    <h3>Current Measurements (7-day change):</h3>
                 </div>
                 <div class="pure-u-1-4">
                     <div id="weight" class="info-box"></div>
@@ -132,20 +132,23 @@
                     <div id="info"></div>
                 </div>              
             </div>
-            <div id="one-week" class="pure-u-1-5 center">
+            <div id="one-week" class="pure-u-1-6 center">
                 <button class="pure-button">1w</button>
             </div>
-            <div id="one-month" class="pure-u-1-5 center">
+            <div id="one-month" class="pure-u-1-6 center">
                 <button class="pure-button">1m</button>
             </div>
-            <div id="three-months" class="pure-u-1-5 center">
+            <div id="three-months" class="pure-u-1-6 center">
                 <button class="pure-button">3m</button>
             </div>
-            <div id="six-months" class="pure-u-1-5 center">
+            <div id="six-months" class="pure-u-1-6 center">
                 <button class="pure-button">6m</button>
             </div>
-            <div id="one-year" class="pure-u-1-5 center">
+            <div id="one-year" class="pure-u-1-6 center">
                 <button class="pure-button">1y</button>
+            </div>
+            <div id="two-year" class="pure-u-1-6 center">
+                <button class="pure-button">2y</button>
             </div>
         </div>
     </div>
@@ -390,19 +393,22 @@
         currentLeanMass = current.smooth_lean_mass_lb
         currentBFP = 1 - currentLeanMass/currentWeight
 
-        trendPoint = data[data.length - 1]
+        var numberOfPointsRecordedInTheLastWeek = data.filter(d => moment(d.measured_at) > moment().subtract(1, 'week')).length
 
-        var i = -1;
-        while (current.measured_at - trendPoint.measured_at < 1000) {
-            i--;
-            trendPoint = data[data.length + i];
+        var weekAgoPoint1 = data[data.length - (numberOfPointsRecordedInTheLastWeek + 2)],
+            weekAgoPoint2 = data[data.length - (numberOfPointsRecordedInTheLastWeek + 1)];
+
+        var weekAgo = moment(current.measured_at).subtract(1, 'week')
+
+        var trendPoint = {
+            smooth_fat_percent:  weekAgoPoint1.smooth_fat_percent  + (weekAgoPoint2.smooth_fat_percent  - weekAgoPoint1.smooth_fat_percent)  * (weekAgo - weekAgoPoint1.measured_at) / (weekAgoPoint2.measured_at),
+            smooth_lean_mass_lb: weekAgoPoint1.smooth_lean_mass_lb + (weekAgoPoint2.smooth_lean_mass_lb - weekAgoPoint1.smooth_lean_mass_lb) * (weekAgo - weekAgoPoint1.measured_at) / (weekAgoPoint2.measured_at),
+            smooth_weight_lb:    weekAgoPoint1.smooth_weight_lb    + (weekAgoPoint2.smooth_weight_lb    - weekAgoPoint1.smooth_weight_lb)    * (weekAgo - weekAgoPoint1.measured_at) / (weekAgoPoint2.measured_at)
         }
 
-        trendTimeLength = current.measured_at - trendPoint.measured_at
-
-        weightTrend = (current.smooth_weight_lb - trendPoint.smooth_weight_lb) * weekInMilliseconds / trendTimeLength
-        leanMassTrend = (current.smooth_lean_mass_lb - trendPoint.smooth_lean_mass_lb) * weekInMilliseconds / trendTimeLength
-        bfpTrend = (current.smooth_fat_percent - trendPoint.smooth_fat_percent) * weekInMilliseconds / trendTimeLength
+        weightTrend = (current.smooth_weight_lb - trendPoint.smooth_weight_lb) 
+        leanMassTrend = (current.smooth_lean_mass_lb - trendPoint.smooth_lean_mass_lb)
+        bfpTrend = (current.smooth_fat_percent - trendPoint.smooth_fat_percent)
 
         now = new Date()
         birthday = new Date(1980, 1, 3)
@@ -453,6 +459,7 @@
     d3.select("#three-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(3, 'months')))
     d3.select("#six-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(6, 'months')))
     d3.select("#one-year").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'years')))
+    d3.select("#two-year").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(2, 'years')))
     
 
   </script>
