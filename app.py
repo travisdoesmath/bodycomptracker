@@ -4,6 +4,7 @@ from flask_marshmallow import Marshmallow
 from flask_heroku import Heroku
 from flask_cors import CORS
 from stats_functions import lowess_k
+from sklearn.linear_model import LinearRegression
 import iso8601
 import numpy as np
 import pandas as pd
@@ -80,37 +81,36 @@ def get_measurements():
 
 @app.route('/smooth_measurements')
 def get_smooth_measurements():
-    k = 5
+    k = 10
     measurements = Measurement.query.all()
     result = measurements_schema.dump(measurements)
     result.data.sort(key=lambda x: x['measured_at'])
-    df = pd.DataFrame(result)   
+    df = pd.DataFrame(result.data)
+    df['measured_at'] = pd.to_datetime(df['measured_at'])
+    print(df.columns)
     df = df.groupby(df['measured_at'].dt.round('1d')).mean().reset_index()
     df = df.merge(df.rolling(2*k+1, center=True).mean(), left_index=True, right_index=True, suffixes=['','_ma'])
-    df['smooth_weight_lb'] = df['weight_lb_ma'].iloc[:10]
-    df['smooth_lean_mass_lb'] = df['lean_mass_lb'].iloc[:10]
-    df['smooth_fat_percent'] = df['fat_percent'].iloc[:10]
+    df['smooth_weight_lb'] = df['weight_lb_ma'].iloc[:2*k]
+    df['smooth_lean_mass_lb'] = df['lean_mass_lb_ma'].iloc[:2*k]
+    df['smooth_fat_percent'] = df['fat_percent_ma'].iloc[:2*k]
     reg = LinearRegression()
     for i in range(2*k, len(df)):
-        X = df.iloc[i-k:i]['measured_at'] - df.iloc[i]['measured_at']
+        X = np.array(range(-k, 0)).reshape(-1, 1)
 
         y = df.iloc[i-k:i]['smooth_weight_lb']
-        reg.fit(X.values.reshape(-1,1), y)
+        #reg.fit(X.values.reshape(-1,1), y)
+        reg.fit(X, y)
         df['smooth_weight_lb'].iloc[i] = 0.7 * reg.intercept_ + 0.3 * df['weight_lb'].iloc[i]
 
         y = df.iloc[i-k:i]['smooth_lean_mass_lb']
-        reg.fit(X.values.reshape(-1,1), y)
-        df['smooth_lean_mass_lb'].iloc[i] = 0.7 * reg.intercept_ + 0.3 * df['lean_mass_lb'].iloc[i]
+        reg.fit(X, y)
+        df['smooth_lean_mass_lb'].iloc[i] = .99 * reg.intercept_ + 0.01 * df['lean_mass_lb'].iloc[i]
 
         y = df.iloc[i-k:i]['smooth_fat_percent']
-        reg.fit(X.values.reshape(-1,1), y)
-        df['smooth_fat_percent'].iloc[i] = 0.7 * reg.intercept_ + 0.3 * df['fat_percent'].iloc[i]
+        reg.fit(X, y)
+        df['smooth_fat_percent'].iloc[i] = .99 * reg.intercept_ + 0.01 * df['fat_percent'].iloc[i]
 
-    for i in range(len(result.data)):
-        result.data[i]['smooth_weight_lb'] = df.iloc[i]['smooth_weight_lb']
-        result.data[i]['smooth_lean_mass_lb'] = df.iloc[i]['smooth_lean_mass_lb']
-        result.data[i]['smooth_fat_percent'] = df.iloc[i]['smooth_fat_percent']
-    return jsonify(result.data)
+    return df.to_json(orient='records')
 
 if __name__ == '__main__':
     app.run(debug=True)
