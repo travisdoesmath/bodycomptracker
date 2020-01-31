@@ -102,13 +102,14 @@ def get_smooth_measurements():
         reg.fit(X, y)
         df['smooth_weight_lb'].iloc[i] = 0.7 * reg.intercept_ + 0.3 * df['weight_lb'].iloc[i]
 
-        y = df.iloc[i-k:i]['smooth_lean_mass_lb']
-        reg.fit(X, y)
-        df['smooth_lean_mass_lb'].iloc[i] = .98 * reg.intercept_ + 0.02 * df['lean_mass_lb'].iloc[i]
+        # y = df.iloc[i-k:i]['smooth_lean_mass_lb']
+        # reg.fit(X, y)
+        # df['smooth_lean_mass_lb'].iloc[i] = .98 * reg.intercept_ + 0.02 * df['lean_mass_lb'].iloc[i]
 
         y = df.iloc[i-k:i]['smooth_fat_percent']
         reg.fit(X, y)
         df['smooth_fat_percent'].iloc[i] = .98 * reg.intercept_ + 0.02 * df['fat_percent'].iloc[i]
+        df['smooth_lean_mass_lb'].iloc[i] = df['smooth_weight_lb'].iloc[i] * (1 - df['smooth_fat_percent'].iloc[i]/100)
 
     return df.to_json(orient='records')
 
