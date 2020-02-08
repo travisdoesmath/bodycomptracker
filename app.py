@@ -16,8 +16,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
-class Measurement(db.Model):
-    __tablename__ = "measurements"
+class RawMeasurement(db.Model):
+    __tablename__ = "raw_measurements"
     id = db.Column(db.Integer, primary_key=True)
     weight_lb = db.Column(db.Float)
     weight_kg = db.Column(db.Float)
@@ -28,7 +28,7 @@ class Measurement(db.Model):
     fat_mass_kg = db.Column(db.Float)
     measured_at = db.Column(db.DateTime)
 
-class MeasurementSchema(ma.Schema):
+class RawMeasurementSchema(ma.Schema):
     class Meta:
         fields = ('weight_lb', 
             'weight_kg',
@@ -40,7 +40,7 @@ class MeasurementSchema(ma.Schema):
             'measured_at'
             )
 
-measurements_schema = MeasurementSchema(many=True)
+raw_measurements_schema = RawMeasurementSchema(many=True)
 
 @app.route('/')
 def index():
@@ -57,7 +57,7 @@ def add_measurement():
     fat_percent = request.args.get('fat_percent')
     measured_at = request.args.get('measured_at')
     # try:
-    measurement=Measurement(
+    raw_measurement=RawMeasurement(
         weight_lb=weight_lb,
         weight_kg=weight_kg,
         lean_mass_kg=lean_mass_kg,
@@ -67,23 +67,23 @@ def add_measurement():
         fat_percent=fat_percent,
         measured_at=measured_at
     )
-    db.session.add(measurement)
+    db.session.add(raw_measurement)
     db.session.commit()
     return "measurement added"
     # except Exception as e:
     #     return(str(e))
 
-@app.route('/measurements')
-def get_measurements():
-    measurements = Measurement.query.all()
-    result = measurements_schema.dump(measurements)
+@app.route('/raw_measurements')
+def get_raw_measurements():
+    raw_measurements = RawMeasurement.query.all()
+    result = raw_measurements_schema.dump(raw_measurements)
     return jsonify(result.data)
 
 @app.route('/smooth_measurements')
 def get_smooth_measurements():
     k = 10
-    measurements = Measurement.query.all()
-    result = measurements_schema.dump(measurements)
+    raw_measurements = RawMeasurement.query.all()
+    result = raw_measurements_schema.dump(raw_measurements)
     result.data.sort(key=lambda x: x['measured_at'])
     df = pd.DataFrame(result.data)
     df['measured_at'] = pd.to_datetime(df['measured_at'])
