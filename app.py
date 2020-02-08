@@ -81,36 +81,33 @@ def get_raw_measurements():
 
 @app.route('/smooth_measurements')
 def get_smooth_measurements():
-    k = 10
+    k_weight = 10
+    k_bfp = 50
     raw_measurements = RawMeasurement.query.all()
     result = raw_measurements_schema.dump(raw_measurements)
     result.data.sort(key=lambda x: x['measured_at'])
     df = pd.DataFrame(result.data)
     df['measured_at'] = pd.to_datetime(df['measured_at'])
-    print(df.columns)
-    df = df.groupby(df['measured_at'].dt.round('1d')).mean().reset_index()
-    df = df.merge(df.rolling(2*k+1, center=True).mean(), left_index=True, right_index=True, suffixes=['','_ma'])
-    df['smooth_weight_lb'] = df['weight_lb_ma'].iloc[:2*k]
-    df['smooth_lean_mass_lb'] = df['lean_mass_lb_ma'].iloc[:2*k]
-    df['smooth_fat_percent'] = df['fat_percent_ma'].iloc[:2*k]
+    df = df.groupby(df['measured_at'].dt.date).mean().reset_index()
+    df = df.merge(df.rolling(2*k_weight+1, center=True).mean()['weight_lb'], left_index=True, right_index=True, suffixes=['','_ma'])
+    df = df.merge(df.rolling(2*k_bfp+1, center=True).mean()['fat_percent'], left_index=True, right_index=True, suffixes=['','_ma'])
+    df['smooth_weight_lb'] = df['weight_lb_ma'].iloc[:2*k_weight]
+    df['smooth_fat_percent'] = df['fat_percent_ma'].iloc[:2*k_bfp]
     reg = LinearRegression()
-    for i in range(2*k, len(df)):
-        X = np.array(range(-k, 0)).reshape(-1, 1)
-
-        y = df.iloc[i-k:i]['smooth_weight_lb']
-        #reg.fit(X.values.reshape(-1,1), y)
+    for i in range(2*k_weight, len(df)):
+        X = np.array(range(-k_weight, 0)).reshape(-1, 1)
+        y = df.iloc[i-k_weight:i]['smooth_weight_lb']
         reg.fit(X, y)
-        df['smooth_weight_lb'].iloc[i] = 0.7 * reg.intercept_ + 0.3 * df['weight_lb'].iloc[i]
+        df.at[i, 'smooth_weight_lb'] = 0.7 * reg.intercept_ + 0.3 * df.at[i, 'weight_lb']
 
-        # y = df.iloc[i-k:i]['smooth_lean_mass_lb']
-        # reg.fit(X, y)
-        # df['smooth_lean_mass_lb'].iloc[i] = .98 * reg.intercept_ + 0.02 * df['lean_mass_lb'].iloc[i]
-
-        y = df.iloc[i-k:i]['smooth_fat_percent']
+    for i in range(2*k_bfp, len(df)):
+        X = np.array(range(-k_bfp, 0)).reshape(-1, 1)
+        y = df.iloc[i-k_bfp:i]['smooth_fat_percent']
         reg.fit(X, y)
-        df['smooth_fat_percent'].iloc[i] = .98 * reg.intercept_ + 0.02 * df['fat_percent'].iloc[i]
-        df['smooth_lean_mass_lb'].iloc[i] = df['smooth_weight_lb'].iloc[i] * (1 - df['smooth_fat_percent'].iloc[i]/100)
-
+        df.at[i, 'smooth_fat_percent'] = 0.95 * reg.intercept_ + 0.05 * df.at[i,'fat_percent']
+        
+    df['smooth_lean_mass_lb'] = df['smooth_weight_lb'] * (1 - df['smooth_fat_percent']/100)
+    
     return df.to_json(orient='records')
 
 if __name__ == '__main__':

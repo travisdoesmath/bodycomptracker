@@ -132,9 +132,6 @@
                     <div id="info"></div>
                 </div>              
             </div>
-            <div id="one-week" class="pure-u-1-6 center">
-                <button class="pure-button">1w</button>
-            </div>
             <div id="one-month" class="pure-u-1-6 center">
                 <button class="pure-button">1m</button>
             </div>
@@ -150,6 +147,9 @@
             <div id="two-year" class="pure-u-1-6 center">
                 <button class="pure-button">2y</button>
             </div>
+            <div id="all" class="pure-u-1-6 center">
+                <button class="pure-button">All</button>
+            </div>            
         </div>
     </div>
   <script>
@@ -454,12 +454,12 @@
 
     })
 
-    d3.select("#one-week").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'weeks')))
     d3.select("#one-month").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'months')))
     d3.select("#three-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(3, 'months')))
     d3.select("#six-months").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(6, 'months')))
     d3.select("#one-year").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(1, 'years')))
     d3.select("#two-year").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment().subtract(2, 'years')))
+    d3.select("#all").on("click", () => renderCharts(globalData, d => moment(d.measured_at) > moment('2016-08-01')))
     
 
   </script>
