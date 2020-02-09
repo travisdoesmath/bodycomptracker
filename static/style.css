@@ -95,3 +95,7 @@ font-size: 14px;
     fill: none;
     stroke-width: 2px;
 }
+
+.obs {
+    opacity: 0.5;
+}
