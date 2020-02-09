@@ -90,7 +90,7 @@ function renderCharts(data, subsetFunction) {
     var yGridlines = d3.axisLeft(yScale).tickValues(yAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
     var bfpYGridlines = d3.axisLeft(bfpYScale).tickValues(bfpYAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
     var xGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize((chartHeight - 2 * axisBreakHeight) * 2/3).tickFormat("")
-    var bfpXGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize((chartHeight - 2 * axisBreakHeight) * 1/3).tickFormat("")
+    var bfpXGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize((chartHeight + axisBreakHeight) * 1/3).tickFormat("")
 
     g.selectAll(".grid-y").data([0]).enter().append("g")
         .classed("grid-y", true)
