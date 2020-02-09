@@ -10,15 +10,12 @@ var height = svgBBox.height,
     width = svgBBox.width;
 
 svg
-// .attr("preserveAspectRatio", "xMinYMin meet")
-.attr("viewBox", `0 0 ${width} ${height}`)
-
 
 var margin = {
     top: 10,
     right: 10, 
     bottom: 40,
-    left: 30
+    left: 50
 }
 
 var axisBreakHeight = 30;
@@ -78,6 +75,12 @@ function renderCharts(data, subsetFunction) {
     //     .domain(d3.extent(subset, d => d.fat_percent))
     //     .range([200, 0])
 
+    // var xAxis = d3.axisBottom(xScale);
+    // var yAxis = d3.axisLeft(yScale)
+    //     .tickValues(d3.range(leanMassMin, leanMassMax + 5, 5).concat(d3.range(weightMin, weightMax + 5, 5)));
+    // var bfpYAxis = d3.axisLeft(bfpYScale)
+    //     .tickFormat(d3.format(".0%"))
+
     var xAxis = d3.axisBottom(xScale);
     var yAxis = d3.axisLeft(yScale)
         .tickValues(d3.range(leanMassMin, leanMassMax + 5, 5).concat(d3.range(weightMin, weightMax + 5, 5)));
@@ -88,7 +91,6 @@ function renderCharts(data, subsetFunction) {
     var bfpYGridlines = d3.axisLeft(bfpYScale).tickValues(bfpYAxis.tickValues()).tickSize(-chartWidth).tickFormat("")
     var xGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize((chartHeight - 2 * axisBreakHeight) * 2/3).tickFormat("")
     var bfpXGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize((chartHeight - 2 * axisBreakHeight) * 1/3).tickFormat("")
-    //var bfpXGridlines = d3.axisBottom(xScale).tickValues(xAxis.tickValues()).tickSize(0).tickFormat("")
 
     g.selectAll(".grid-y").data([0]).enter().append("g")
         .classed("grid-y", true)
