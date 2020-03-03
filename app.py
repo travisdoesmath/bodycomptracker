@@ -103,8 +103,8 @@ def get_smooth_measurements():
 
     for i in range(2*k_bfp, len(df)):
         today = df.iloc[i]['measured_at']
-        X = (today - df.iloc[i-k_bfp:i+1]['measured_at']).dt.total_seconds().values.reshape(-1, 1)
-        y = df.iloc[i-k_bfp:i+1]['smooth_fat_percent']
+        X = (today - df.iloc[i-k_bfp:i]['measured_at']).dt.total_seconds().values.reshape(-1, 1)
+        y = df.iloc[i-k_bfp:i]['smooth_fat_percent']
         reg.fit(X, y)
         df.at[i, 'smooth_fat_percent'] = 0.95 * reg.intercept_ + 0.05 * df.at[i,'fat_percent']
         
