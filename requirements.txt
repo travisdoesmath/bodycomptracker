@@ -11,7 +11,7 @@ Jinja2==2.10.1
 joblib==0.14.1
 MarkupSafe==1.1.1
 marshmallow==2.19.2
-numpy==1.16.4
+numpy==1.22.0
 pandas==1.0.0
 psycopg2==2.8.2
 pykalman==0.9.5
